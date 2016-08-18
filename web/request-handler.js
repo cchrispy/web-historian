@@ -9,12 +9,13 @@ exports.handleRequest = function (req, res) {
   //   console.log(data);
   // });
 
-  var exists = false;
-  archive.isUrlInList('example1.com', function(item) {
-    if (item === 'example1.com') {
-      exists = true;
-    }
-  });
+  // var exists = false;
+  // archive.isUrlInList('example1.com', function(item) {
+  //   if (item === 'example1.com') {
+  //     exists = true;
+  //   }
+  // });
+  // archive.isUrlInList('example1.com');
 
   // console.log(archive.isUrlInList('example2.com', function(url, data) {
   //   return data.indexOf(url) !== -1;
@@ -31,7 +32,7 @@ exports.handleRequest = function (req, res) {
   if (req.method === 'GET') {
     fs.readFile(pathname, function(error, content) {
       if (error) {
-        console.log('error reading file: ', error);
+        console.log('error reading file: GETREQUEST');
         res.writeHead(404, {'Content-Type': 'text/html'});
         res.end();
       } else {

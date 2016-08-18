@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
+var request = require('request');
 
 /*
  * You will need to reuse the same paths many times over in the course of this sprint.
@@ -35,23 +36,60 @@ exports.readListOfUrls = function(cb) {
 };
 
 exports.isUrlInList = function(url, cb) {
-  var exist = false;
-  var check = function(item) {
-    if (item === url) {
-      exist = true;
+  exports.readListOfUrls(function(data) {
+    cb(data.indexOf(url) !== -1);
+    // data.forEach(function(item) {
+    //   cb(url === item);
+    // });
+  });
+};
+
+exports.addUrlToList = function(url, cb) {
+  exports.isUrlInList(url, function(found) {
+    if (!found) {
+      var newPath = path.join(exports.paths.archivedSites, '/' + url);
+      fs.appendFile(newPath, url, function(error) {
+        if (error) {
+          console.log('adding URL to archive error: ', error);
+        }
+      });
+      fs.appendFile(exports.paths.list, url + '\n', function(error) {
+        if (error) {
+          console.log('addUrlToList appendFile error');
+        }
+        cb();
+      });
+    } else {
+      console.log('found??');
     }
-  };
-  exports.readListOfUrls(check);
-
-  return exist;
+  });
 };
 
-exports.addUrlToList = function() {
-
+exports.isUrlArchived = function(url, cb) {
+  fs.readdir(exports.paths.archivedSites, function(error, files) {
+    if (error) {
+      console.log('Error in isUrlArchived');
+    } else { // files is an array of files in that path
+      cb(files.indexOf(url) !== -1);
+    }
+  });
 };
 
-exports.isUrlArchived = function() {
-};
-
-exports.downloadUrls = function() {
+exports.downloadUrls = function(urlArray) {
+  urlArray.forEach(function(url) {
+    exports.addUrlToList(url, function() {
+      request(url, function(err, response, body) {
+        if (!err && response.statusCode === 200) {
+          exports.addUrlToList(url, function() {
+            var filePath = path.join(exports.paths.archivedSites, '/' + url);
+            fs.appendFile(filePath, response, function(error) {
+              if (error) {
+                console.log("didn't believe did you?");
+              }
+            });
+          });
+        }
+      });
+    });
+  });
 };
