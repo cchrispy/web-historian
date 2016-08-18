@@ -31,7 +31,9 @@ exports.readListOfUrls = function(cb) {
     if (error) {
       console.log('readListOfUrls error');
     }
-    cb(data.split('\n'));
+    cb(_.filter(data.split('\n'), function(url) {
+      return url.length > 3;
+    }));
   });
 };
 
@@ -47,12 +49,6 @@ exports.isUrlInList = function(url, cb) {
 exports.addUrlToList = function(url, cb) {
   exports.isUrlInList(url, function(found) {
     if (!found) {
-      var newPath = path.join(exports.paths.archivedSites, '/' + url);
-      fs.appendFile(newPath, url, function(error) {
-        if (error) {
-          console.log('adding URL to archive error: ', error);
-        }
-      });
       fs.appendFile(exports.paths.list, url + '\n', function(error) {
         if (error) {
           console.log('addUrlToList appendFile error');
@@ -75,21 +71,35 @@ exports.isUrlArchived = function(url, cb) {
   });
 };
 
+// for each url, check if url is already archived
+// if it is archived, dont do anything
+// if it isn't archived
+  // create a new file
+  // get html from the page and write to the file
+
 exports.downloadUrls = function(urlArray) {
+  console.log(urlArray);
   urlArray.forEach(function(url) {
-    exports.addUrlToList(url, function() {
-      request(url, function(err, response, body) {
-        if (!err && response.statusCode === 200) {
-          exports.addUrlToList(url, function() {
-            var filePath = path.join(exports.paths.archivedSites, '/' + url);
-            fs.appendFile(filePath, response, function(error) {
+    var newPath = path.join(exports.paths.archivedSites, '/' + url);
+    // var newPath = path.join(exports.paths.archivedSites, '/' + 'test.txt');
+    exports.isUrlArchived(url, function(found) {
+      if (!found) {
+        request('https://' + url, function(error, response, body) {
+          if (error) {
+            console.log('Request Error in downloadUrls ');
+          }
+          if (!error && response.statusCode === 200) {
+            // console.log('REQUEST BODY: ', body);
+            fs.writeFile(newPath, body, function(error) {
+              console.log(body);
+              console.log('writing file to ', newPath);
               if (error) {
-                console.log("didn't believe did you?");
+                console.log('appendFile error at downloadUrls ', error);
               }
             });
-          });
-        }
-      });
+          }
+        });
+      }
     });
   });
 };
