@@ -11,6 +11,5 @@ var archive = require('../helpers/archive-helpers.js');
 
 exports.getHTML = function() {
   console.log('work work');
-  archive.readListOfUrls(archive.downloadUrls);
+  archive.downloadUrls();
 };
-// setInterval(getHTML, 3000);

@@ -2,6 +2,7 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
 var request = require('request');
+var Promise = require('bluebird');
 
 /*
  * You will need to reuse the same paths many times over in the course of this sprint.
@@ -23,83 +24,76 @@ exports.initialize = function(pathsObj) {
   });
 };
 
-// The following function names are provided to you to suggest how you might
-// modularize your code. Keep it clean!
-
-exports.readListOfUrls = function(cb) {
+exports.readListOfUrls = new Promise(function(resolve, reject) {
   fs.readFile(exports.paths.list, 'utf-8', function(error, data) {
     if (error) {
-      console.log('readListOfUrls error');
+      reject(error);
+    } else {
+      resolve(data);
     }
-    cb(_.filter(data.split('\n'), function(url) {
-      return url.length > 3;
-    }));
+  });
+}).then(function(data) {
+  console.log(data);
+  return _.filter(data.split('\n'), function(url) {
+    return url !== '';
+  });
+}).catch(function(error) {
+  console.log('error reading URL list', error);
+});
+
+exports.isUrlInList = function(url) {
+  return exports.readListOfUrls.then(function(listOfUrls) {
+    return listOfUrls.indexOf(url) !== -1;
   });
 };
 
-exports.isUrlInList = function(url, cb) {
-  exports.readListOfUrls(function(data) {
-    cb(data.indexOf(url) !== -1);
-    // data.forEach(function(item) {
-    //   cb(url === item);
-    // });
-  });
-};
-
-exports.addUrlToList = function(url, cb) {
-  exports.isUrlInList(url, function(found) {
+exports.addUrlToList = function(url) {
+  exports.isUrlInList(url).then(function(found) {
     if (!found) {
+      console.log('LALALALALALALALALALALALALALALA', url);
       fs.appendFile(exports.paths.list, url + '\n', function(error) {
         if (error) {
-          console.log('addUrlToList appendFile error');
+          console.log(error);
         }
-        cb();
       });
-    } else {
-      console.log('found??');
     }
   });
 };
 
-exports.isUrlArchived = function(url, cb) {
-  fs.readdir(exports.paths.archivedSites, function(error, files) {
-    if (error) {
-      console.log('Error in isUrlArchived');
-    } else { // files is an array of files in that path
-      cb(files.indexOf(url) !== -1);
-    }
-  });
-};
-
-// for each url, check if url is already archived
-// if it is archived, dont do anything
-// if it isn't archived
-  // create a new file
-  // get html from the page and write to the file
-
-exports.downloadUrls = function(urlArray) {
-  console.log(urlArray);
-  urlArray.forEach(function(url) {
-    var newPath = path.join(exports.paths.archivedSites, '/' + url);
-    // var newPath = path.join(exports.paths.archivedSites, '/' + 'test.txt');
-    exports.isUrlArchived(url, function(found) {
-      if (!found) {
-        request('https://' + url, function(error, response, body) {
-          if (error) {
-            console.log('Request Error in downloadUrls ');
-          }
-          if (!error && response.statusCode === 200) {
-            // console.log('REQUEST BODY: ', body);
-            fs.writeFile(newPath, body, function(error) {
-              console.log(body);
-              console.log('writing file to ', newPath);
-              if (error) {
-                console.log('appendFile error at downloadUrls ', error);
-              }
-            });
-          }
-        });
+exports.isUrlArchived = function(url) {
+  return new Promise(function(resolve, reject) {
+    fs.readdir(exports.paths.archivedSites, function(error, files) {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(files);
       }
+    });
+  }).then(function(files) {
+    return files.indexOf(url) !== -1;
+  });
+};
+
+exports.downloadUrls = function() {
+  exports.readListOfUrls.then(function(urlArray) {
+    urlArray.forEach(function(url) {
+      var newPath = path.join(exports.paths.archivedSites, '/' + url);
+      exports.isUrlArchived(url).then(function(found) {
+        if (!found) {
+          request('https://' + url, function(error, response, body) {
+            if (error) {
+              console.log('Error downloading URL');
+            } else if (!error && response.statusCode === 200) {
+              console.log(body);
+              fs.writeFile(newPath, body, function(error) {
+                if (error) {
+                  console.log('downloadUrls appendFile error');
+                }
+              });
+            }
+          });
+        }
+      });
     });
   });
 };
